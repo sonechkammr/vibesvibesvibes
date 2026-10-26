@@ -1,0 +1,32 @@
+{
+  "version": "0.0.5",
+  "version_code": 5,
+  "package": "org.sonechkammr.mindgarden",
+  "source_commit": "c88732e1ff0d5a5d94e7814444f0b17d46bd1d5f",
+  "release_tag": "mind-garden-v0.0.5-android-test",
+  "engine": "4.7.2.stable.official.ed1daf0bf",
+  "template": "4.7.2.stable",
+  "jdk": "Temurin 17.0.20.1+1",
+  "build_tools": "36.0.0",
+  "target_sdk": 36,
+  "min_sdk": 24,
+  "abis": [
+    "arm64-v8a"
+  ],
+  "apk": "mind-garden-0.0.5-android-arm64.apk",
+  "size_bytes": 40420100,
+  "sha256": "38ee6ed2c3a427d76c8c1ebdba7bb60b4d8de5dd50c80b6b2249e0af265fa3f7",
+  "signing": "debug",
+  "signing_schemes": [
+    "v2",
+    "v3"
+  ],
+  "certificate_sha256": "47863180b2c4bfc45588afd5867bfe16bb312a844c3e571632304bf00d034e1d",
+  "permissions": [],
+  "zip_alignment_bytes": 16384,
+  "elf_load_alignment_bytes": 16384,
+  "source_checks": "50 state, 15 clock, 69 navigation/day, UI smoke",
+  "apk_payload_smoke": "passed on Windows Godot, not Android runtime",
+  "physical_phone_tested": false,
+  "save_schema": 2
+}

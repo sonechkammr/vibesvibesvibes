@@ -12,7 +12,7 @@ app, Flutter, Unity, or a backend without a concrete reason and user direction.
 - World time outside the app is simulated on re-entry. Meditation continues on desktop focus loss; reliable Android locked-screen audio is a separate export-stage task.
 - User explicitly authorizes local aggregate interaction patterns to vary scenery. No moral/psychological interpretation, no raw keystrokes, no tracking outside this app.
 - First agree on concrete functionality, its purpose, and acceptance criteria with the user, then build the APK. Target: Nothing Phone (3a) Pro, Android 16, Nothing OS 4.1.
-- The first APK is for test entries with the screen on. Locked-screen audio and journal export/import are later stages. Short practices with verified sources belong in the next scope; proposed copy is in docs/PRACTICES.md.
+- The first APK is for test entries with the screen on. Locked-screen audio and journal export/import are later stages. The user approved and requested both sourced practices and the plain timer; implemented copy is in docs/PRACTICES.md and scripts/practice_catalog.gd.
 - Ask a focused goal-alignment question when presenting a new scope. Do not repeat questions already answered.
 - Publish project source, assets, README, plans, decision notes, and meaningful commits to https://github.com/sonechkammr/vibesvibesvibes. Keep existing history and the old prototype. The active project lives in mind-garden/ there. Exclude personal journals, credentials, signing keys, local tools, and generated caches.
 - Re-entry must not replay rewards or double-count elapsed time.
