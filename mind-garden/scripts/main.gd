@@ -7,6 +7,7 @@ const View = preload("res://scripts/garden_view.gd")
 const Clock = preload("res://scripts/meditation_clock.gd")
 const Journal = preload("res://scripts/journal_form.gd")
 const Wheel = preload("res://scripts/minute_wheel.gd")
+const Practices = preload("res://scripts/practice_catalog.gd")
 const INK := Color("eee8d7")
 const MUTED := Color("bdc0b2")
 const GOLD := Color("e7c79f")
@@ -44,6 +45,7 @@ var save_elapsed: float = 0
 var draft_save_elapsed: float = -1
 var last_draft_pattern_ms: int = 0
 var selected_minutes: int = 5
+var selected_practice_id: String = ""
 var last_event_id: int = 0
 var start_queued := false
 var original_note: String = ""
@@ -51,7 +53,7 @@ var original_note: String = ""
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	test_mode = "--smoke" in OS.get_cmdline_user_args()
-	capture_mode = "--capture" in OS.get_cmdline_user_args()
+	capture_mode = "--capture" in OS.get_cmdline_user_args() or "--practice-capture" in OS.get_cmdline_user_args()
 	model = Model.new("user://smoke_garden.json" if test_mode else ("user://capture_garden.json" if capture_mode else "user://garden.json"))
 	if test_mode or capture_mode:
 		model.fresh(_now())
@@ -80,6 +82,8 @@ func _ready() -> void:
 		_toast(model.load_warning)
 	if test_mode:
 		_run_smoke.call_deferred()
+	elif "--practice-capture" in OS.get_cmdline_user_args():
+		_capture_practices.call_deferred()
 	elif capture_mode:
 		_capture.call_deferred()
 	else:
@@ -469,8 +473,41 @@ func _delete_confirmation(id: int) -> void:
 		_history()))
 
 func _meditation_menu() -> void:
+	selected_practice_id = ""
 	world.go_to_cushion()
-	var column := _modal("Сесть у чаши","Три удара в начале, один в конце.",450)
+	var column := _modal("Сесть у чаши","Выберите короткую практику или обычный таймер.",420)
+	overlay.color.a = 0.15
+	for practice in Practices.ITEMS:
+		var practice_id: String = practice.id
+		column.add_child(_button(practice.title,func() -> void: _practice_card(practice_id)))
+	column.add_child(_button("Таймер без инструкции",_duration_menu,true))
+	column.add_child(_button("Сейчас слишком тяжело",_support))
+	sheet_close_button.pressed.connect(func() -> void: world.stand_up())
+
+func _practice_card(practice_id: String) -> void:
+	var practice: Dictionary = Practices.find(practice_id)
+	if practice.is_empty():
+		return
+	var column := _modal(practice.title,"Адаптация для приложения",720)
+	overlay.color.a = 0.15
+	var instruction := _text(practice.instruction,20)
+	instruction.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(instruction)
+	column.add_child(_text("Источник",16,GOLD))
+	var source := _text(practice.source,15,MUTED)
+	source.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(source)
+	column.add_child(_button("Открыть источник",func() -> void: OS.shell_open(practice.url)))
+	var continue_button := _button("Выбрать время",func() -> void:
+		selected_practice_id = practice_id
+		selected_minutes = int(practice.minutes)
+		_duration_menu(),true)
+	modal_frame.add_child(continue_button)
+	modal_frame.add_child(_button("К выбору практики",_meditation_menu))
+	sheet_close_button.pressed.connect(func() -> void: world.stand_up())
+
+func _duration_menu() -> void:
+	var column := _modal("Сесть у чаши","Три удара в начале, один в конце.",650)
 	overlay.color.a = 0.15
 	var wheel := Wheel.new()
 	column.add_child(wheel)
@@ -484,6 +521,7 @@ func _meditation_menu() -> void:
 		row.add_child(b)
 	column.add_child(_button("Начать",func() -> void: _request_start(selected_minutes*60),true))
 	column.add_child(_button("Без обратного отсчёта",func() -> void: _request_start(0)))
+	column.add_child(_button("К выбору практики",_meditation_menu))
 	column.add_child(_button("Сейчас слишком тяжело",_support))
 	sheet_close_button.pressed.connect(func() -> void: world.stand_up())
 
@@ -506,7 +544,8 @@ func _start_meditation(seconds: int) -> void:
 	var result: Dictionary = clock.tick(Time.get_ticks_msec())
 	if result.strikes>0:
 		_strike()
-	var column := _modal("У чаши","Можно оставить дыхание естественным.",300)
+	var practice: Dictionary = Practices.find(selected_practice_id)
+	var column := _modal(str(practice.get("title","У чаши")),"Можно закончить раньше.",320)
 	overlay.color.a = 0.08
 	sheet_close_button.pressed.disconnect(_close_modal)
 	sheet_close_button.pressed.connect(_stop_meditation)
@@ -556,7 +595,9 @@ func _finish_meditation() -> void:
 	if early:
 		model.pattern("early_finishes")
 	if duration>0:
-		last_event_id = model.add_entry({},[],"Практика у поющей чаши",_now(),"practice",duration)
+		var practice: Dictionary = Practices.find(selected_practice_id)
+		var note: String = "Практика: "+str(practice.title) if not practice.is_empty() else "Практика у поющей чаши"
+		last_event_id = model.add_entry({},[],note,_now(),"practice",duration)
 		_persist()
 	_strike()
 	world.stand_up()
@@ -615,7 +656,7 @@ func _app_menu() -> void:
 	column.add_child(_button("История записей",_history))
 	column.add_child(_button("Что меняется в саду",_garden_info))
 	column.add_child(_button("Сейчас слишком тяжело",_support))
-	column.add_child(_text("Версия 0.0.4 · всё хранится на устройстве.",15,MUTED))
+	column.add_child(_text("Версия 0.0.5 · всё хранится на устройстве.",15,MUTED))
 
 func _persist() -> bool:
 	var error: Error = model.save()
@@ -669,6 +710,7 @@ func _capture() -> void:
 	await _navigate(2)
 	await _shot("right")
 	_meditation_menu()
+	_duration_menu()
 	await get_tree().create_timer(5.0).timeout
 	assert(world.meditating)
 	await _shot("duration")
@@ -719,6 +761,22 @@ func _run_smoke() -> void:
 	assert(model.data.events.size()==1 and model.data.patterns.revisions==1)
 	await _navigate(2)
 	_meditation_menu()
+	var events_before: int = model.data.events.size()
+	var plants_before: int = model.data.plants.size()
+	# Follow the actual button signals through both instructions and back.
+	for practice in Practices.ITEMS:
+		var choice_index: int = 2 if practice.id=="breathing" else 3
+		modal_content.get_child(choice_index).pressed.emit()
+		assert(modal_content.get_child(1).text=="Адаптация для приложения")
+		assert(modal_content.get_child(2).text==practice.instruction)
+		assert(modal_content.get_child(4).text==practice.source)
+		assert(clock.state=="idle" and not start_queued)
+		assert(model.data.events.size()==events_before and model.data.plants.size()==plants_before)
+		modal_frame.get_child(1).pressed.emit()
+		assert(selected_practice_id==practice.id and selected_minutes==3)
+		modal_content.get_child(6).pressed.emit()
+	assert(selected_practice_id=="")
+	modal_content.get_child(4).pressed.emit()
 	var wheel: Control = modal_content.get_child(2)
 	wheel.set_value(17)
 	assert(selected_minutes==17)
@@ -727,6 +785,7 @@ func _run_smoke() -> void:
 	await get_tree().create_timer(0.4).timeout
 	assert(world.zone==1 and not is_instance_valid(overlay))
 	await _navigate(2)
+	selected_practice_id = "breathing"
 	world.meditating = true
 	_start_meditation(1)
 	await get_tree().create_timer(0.2).timeout
@@ -738,13 +797,39 @@ func _run_smoke() -> void:
 	_pause_meditation()
 	await get_tree().create_timer(1.2).timeout
 	assert(clock.state=="idle" and model.practice_seconds()==1)
+	assert(model.data.events.back().note=="Практика: Внимание к дыханию")
 	_finish_meditation()
 	assert(model.data.events.size()==2)
 	var restored := Model.new(model.path)
 	assert(restored.load_or_create(_now()) and restored.data.events.size()==2)
+	_meditation_menu()
+	modal_content.get_child(4).pressed.emit()
+	assert(selected_practice_id=="")
+	world.meditating = true
+	_request_start(0)
+	assert(clock.state=="running" and clock.target==0)
+	await get_tree().create_timer(1.1).timeout
+	_stop_meditation()
+	assert(model.data.events.size()==3 and model.data.events.back().note=="Практика у поющей чаши")
+	_finish_meditation()
+	assert(model.data.events.size()==3)
 	_toggle_sound()
 	assert(not model.data.sound)
 	bowl.stop()
 	await get_tree().create_timer(0.3).timeout
-	print("SMOKE PASS: combined entry, individual sliders, edit, navigation, return, first-strike timer, focus continuity, pause, exactly-once finish, reload, mute")
+	print("SMOKE PASS: journal, navigation, both sourced practices, instruction back/continue, no rewards on reading, named practice result, plain unlimited timer, pause, exactly-once finish, reload, mute")
+	get_tree().quit()
+
+func _capture_practices() -> void:
+	await _navigate(2)
+	DirAccess.make_dir_recursive_absolute("res://previews/practices")
+	for screen in ["menu","breathing","goodwill","timer"]:
+		_meditation_menu()
+		if screen in ["breathing","goodwill"]:
+			_practice_card(screen)
+		elif screen=="timer":
+			_duration_menu()
+		await get_tree().create_timer(0.3).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("res://previews/practices/%s.png" % screen)
 	get_tree().quit()
